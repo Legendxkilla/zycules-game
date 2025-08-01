@@ -18,7 +18,6 @@ let gameOver = false;
 
 function preload() {
   this.load.image('background', 'assets/background.png');
-  this.load.image('ground', 'assets/ground.png');
   this.load.spritesheet('zycules', 'assets/zycules.png', { frameWidth: 64, frameHeight: 64 });
   this.load.image('token', 'assets/token.png');
   this.load.image('rugpull', 'assets/rugpull.png');
@@ -29,12 +28,11 @@ function create() {
   // Background
   this.add.tileSprite(0, 0, config.width, config.height, 'background').setOrigin(0, 0);
 
-  // Ground (static)
-  const ground = this.physics.add.staticImage(config.width / 2, config.height - 10, 'ground')
-    .setDisplaySize(config.width, 20)
-    .refreshBody();
+  // Invisible ground using a physics-enabled rectangle
+  const groundRect = this.add.rectangle(config.width / 2, config.height - 10, config.width, 20);
+  this.physics.add.existing(groundRect, true); // true = static body
 
-  // Player
+  // Player setup
   player = this.physics.add.sprite(150, config.height - 50, 'zycules')
     .setCollideWorldBounds(true)
     .setScale(0.75);
@@ -47,7 +45,7 @@ function create() {
   player.play('run');
 
   // Collide player with ground
-  this.physics.add.collider(player, ground);
+  this.physics.add.collider(player, groundRect);
 
   // Groups
   obstacles = this.physics.add.group();
@@ -69,26 +67,25 @@ function create() {
 function update() {
   if (gameOver) return;
 
-  // Jump when on ground
-  if (Phaser.Input.Keyboard.JustDown(cursors.up) && player.body.onFloor()) {
+  // Jump when on the ground
+  if ((Phaser.Input.Keyboard.JustDown(cursors.up) || this.input.activePointer.justDown) && player.body.blocked.down) {
     player.setVelocityY(-350);
   }
 }
 
 function spawnObstacle() {
-  if (Math.random() < 0.5) return; // 50% chance for gap
+  if (Math.random() < 0.5) return; // 50% chance gap
   const type = Phaser.Math.RND.pick(['rugpull', 'gastrap']);
   const obs = obstacles.create(config.width + 50, config.height - 10, type)
     .setOrigin(0.5, 1)
     .setDisplaySize(32, 32);
   obs.body.allowGravity = false;
   obs.setVelocityX(-100);
-  obs.body.setImmovable(true);
 }
 
 function spawnToken() {
   if (Math.random() < 0.5) return; // 50% chance
-  const y = config.height - Phaser.Math.Between(30, 100);
+  const y = Phaser.Math.Between(config.height - 150, config.height - 50);
   const token = tokens.create(config.width + 50, y, 'token')
     .setOrigin(0.5, 1)
     .setDisplaySize(16, 16);

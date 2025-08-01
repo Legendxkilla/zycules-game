@@ -15,6 +15,7 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+
 let player, cursors, obstacles, tokens, score = 0, scoreText;
 
 function preload() {
@@ -27,11 +28,17 @@ function preload() {
 
 function create() {
   this.add.tileSprite(0, 0, config.width, config.height, 'background').setOrigin(0, 0);
+
   player = this.physics.add.sprite(100, config.height - 150, 'zycules');
   player.setCollideWorldBounds(true);
+
   this.anims.create({
-    key: 'run', frames: this.anims.generateFrameNumbers('zycules', { start: 0, end: 3 }), frameRate: 10, repeat: -1
+    key: 'run',
+    frames: this.anims.generateFrameNumbers('zycules', { start: 0, end: 3 }),
+    frameRate: 10,
+    repeat: -1
   });
+
   player.play('run');
 
   obstacles = this.physics.add.group();
@@ -50,7 +57,9 @@ function create() {
 
 function update() {
   player.setVelocityX(200);
-  if ((cursors.up.isDown || this.input.activePointer.isDown) && player.body.onFloor()) {
+
+  // Optional: Better control for jump
+  if ((Phaser.Input.Keyboard.JustDown(cursors.up) || this.input.activePointer.justDown) && player.body.onFloor()) {
     player.setVelocityY(-400);
   }
 }
@@ -59,18 +68,29 @@ function spawnObstacle() {
   const types = ['rugpull', 'gastrap'];
   const type = Phaser.Math.RND.pick(types);
   const y = config.height - 100;
+
   const obs = obstacles.create(config.width + 50, y, type);
+  obs.setScale(0.5);  // Shrink obstacle size
+
   obs.setVelocityX(-200);
   obs.setImmovable(true);
   obs.body.allowGravity = false;
-  obs.setSize(obs.width * 0.8, obs.height * 0.8);
+
+  // Optional hitbox tuning
+  obs.body.setSize(obs.displayWidth, obs.displayHeight);
 }
 
 function spawnToken() {
   const y = Phaser.Math.Between(config.height - 200, config.height - 100);
+
   const token = tokens.create(config.width + 50, y, 'token');
+  token.setScale(0.4);  // Shrink token size
+
   token.setVelocityX(-200);
   token.body.allowGravity = false;
+
+  // Optional hitbox tuning
+  token.body.setSize(token.displayWidth, token.displayHeight);
 }
 
 function collectToken(player, token) {

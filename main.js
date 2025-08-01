@@ -1,3 +1,4 @@
+
 const config = {
   type: Phaser.AUTO,
   width: 800,
@@ -15,7 +16,6 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
-
 let player, cursors, obstacles, tokens, score = 0, scoreText;
 
 function preload() {
@@ -31,7 +31,8 @@ function create() {
   this.add.tileSprite(0, 0, config.width, config.height, 'background').setOrigin(0, 0);
 
   // Player setup
-  player = this.physics.add.sprite(100, config.height - 150, 'zycules').setCollideWorldBounds(true);
+  player = this.physics.add.sprite(100, config.height - 100, 'zycules')
+    .setCollideWorldBounds(true);
   this.anims.create({
     key: 'run',
     frames: this.anims.generateFrameNumbers('zycules', { start: 0, end: 3 }),
@@ -63,8 +64,9 @@ function update() {
   // Always running forward
   player.setVelocityX(200);
 
-  // Jump control
-  if ((Phaser.Input.Keyboard.JustDown(cursors.up) || this.input.activePointer.justDown) && player.body.onFloor()) {
+  // Jump control: allow jump when touching ground
+  const isGrounded = player.body.blocked.down || player.body.touching.down;
+  if ((cursors.up.isDown || this.input.activePointer.isDown) && isGrounded) {
     player.setVelocityY(-400);
   }
 }
@@ -72,27 +74,34 @@ function update() {
 function spawnObstacle() {
   const types = ['rugpull', 'gastrap'];
   const type = Phaser.Math.RND.pick(types);
-  const y = config.height - 80;
-
-  const obs = obstacles.create(config.width + 50, y, type);
+  const obs = obstacles.create(config.width + 50, 0, type);
 
   // Force exact size
   obs.setDisplaySize(48, 48);
   obs.setVelocityX(-200);
-  obs.setImmovable(true);
   obs.body.allowGravity = false;
+
+  // Place obstacle on ground
+  const groundY = config.height - obs.displayHeight / 2;
+  obs.setY(groundY);
+
+  // Collider size
   obs.body.setSize(48, 48, true);
 }
 
 function spawnToken() {
-  const y = Phaser.Math.Between(config.height - 220, config.height - 120);
-
-  const token = tokens.create(config.width + 50, y, 'token');
+  const token = tokens.create(config.width + 50, 0, 'token');
 
   // Force exact size
   token.setDisplaySize(24, 24);
   token.setVelocityX(-200);
   token.body.allowGravity = false;
+
+  // Place token on ground
+  const groundY = config.height - token.displayHeight / 2;
+  token.setY(groundY);
+
+  // Collider size
   token.body.setSize(24, 24, true);
 }
 

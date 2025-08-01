@@ -16,7 +16,8 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
-let player, cursors, obstacles, tokens, score = 0, scoreText;
+let player, cursors, obstacles, tokens, score = 0, scoreText, background;
+const RUN_SPEED = 200;
 
 function preload() {
   this.load.image('background', 'assets/background.png');
@@ -27,12 +28,13 @@ function preload() {
 }
 
 function create() {
-  // Background
-  this.add.tileSprite(0, 0, config.width, config.height, 'background').setOrigin(0, 0);
+  // Scrolling background
+  background = this.add.tileSprite(0, 0, config.width, config.height, 'background').setOrigin(0);
 
-  // Player setup
-  player = this.physics.add.sprite(100, config.height - 100, 'zycules')
-    .setCollideWorldBounds(true);
+  // Player setup - static X position
+  player = this.physics.add.sprite(150, config.height - 100, 'zycules');
+  player.setCollideWorldBounds(true);
+
   this.anims.create({
     key: 'run',
     frames: this.anims.generateFrameNumbers('zycules', { start: 0, end: 3 }),
@@ -41,18 +43,18 @@ function create() {
   });
   player.play('run');
 
-  // Groups
+  // Groups for obstacles & tokens
   obstacles = this.physics.add.group();
   tokens = this.physics.add.group();
 
   // Spawn loops
-  this.time.addEvent({ delay: 1500, callback: spawnObstacle, callbackScope: this, loop: true });
-  this.time.addEvent({ delay: 1000, callback: spawnToken, callbackScope: this, loop: true });
+  this.time.addEvent({ delay: 1200, callback: spawnObstacle, callbackScope: this, loop: true });
+  this.time.addEvent({ delay: 900, callback: spawnToken, callbackScope: this, loop: true });
 
   // Score Text
   scoreText = this.add.text(16, 16, 'Olympus Meter: 0', { fontSize: '20px', fill: '#fff' });
 
-  // Collisions
+  // Collisions & overlaps
   this.physics.add.overlap(player, tokens, collectToken, null, this);
   this.physics.add.collider(player, obstacles, hitObstacle, null, this);
 
@@ -60,13 +62,25 @@ function create() {
   cursors = this.input.keyboard.createCursorKeys();
 }
 
-function update() {
-  // Always running forward
-  player.setVelocityX(200);
+function update(time, delta) {
+  // Scroll background to left
+  background.tilePositionX += RUN_SPEED * delta / 1000;
 
-  // Jump control: allow jump when touching ground
+  // Make world move left by moving obstacles and tokens towards player
+  Phaser.Actions.IncX(obstacles.getChildren(), -RUN_SPEED * delta / 1000);
+  Phaser.Actions.IncX(tokens.getChildren(), -RUN_SPEED * delta / 1000);
+
+  // Remove off-screen
+  obstacles.getChildren().forEach(obj => {
+    if (obj.x < -50) obj.destroy();
+  });
+  tokens.getChildren().forEach(obj => {
+    if (obj.x < -50) obj.destroy();
+  });
+
+  // Player jump
   const isGrounded = player.body.blocked.down || player.body.touching.down;
-  if ((cursors.up.isDown || this.input.activePointer.isDown) && isGrounded) {
+  if ((Phaser.Input.Keyboard.JustDown(cursors.up) || this.input.activePointer.justDown) && isGrounded) {
     player.setVelocityY(-400);
   }
 }
@@ -74,34 +88,21 @@ function update() {
 function spawnObstacle() {
   const types = ['rugpull', 'gastrap'];
   const type = Phaser.Math.RND.pick(types);
-  const obs = obstacles.create(config.width + 50, 0, type);
+  const groundY = config.height - 80;
 
-  // Force exact size
+  const obs = obstacles.create(config.width + 50, groundY, type);
   obs.setDisplaySize(48, 48);
-  obs.setVelocityX(-200);
   obs.body.allowGravity = false;
-
-  // Place obstacle on ground
-  const groundY = config.height - obs.displayHeight / 2;
-  obs.setY(groundY);
-
-  // Collider size
   obs.body.setSize(48, 48, true);
 }
 
 function spawnToken() {
-  const token = tokens.create(config.width + 50, 0, 'token');
+  const groundY = config.height - 80;
+  const tokenY = Phaser.Math.Between(groundY - 100, groundY - 20);
 
-  // Force exact size
+  const token = tokens.create(config.width + 50, tokenY, 'token');
   token.setDisplaySize(24, 24);
-  token.setVelocityX(-200);
   token.body.allowGravity = false;
-
-  // Place token on ground
-  const groundY = config.height - token.displayHeight / 2;
-  token.setY(groundY);
-
-  // Collider size
   token.body.setSize(24, 24, true);
 }
 

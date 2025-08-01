@@ -27,37 +27,43 @@ function preload() {
 }
 
 function create() {
+  // Background
   this.add.tileSprite(0, 0, config.width, config.height, 'background').setOrigin(0, 0);
 
-  player = this.physics.add.sprite(100, config.height - 150, 'zycules');
-  player.setCollideWorldBounds(true);
-
+  // Player setup
+  player = this.physics.add.sprite(100, config.height - 150, 'zycules').setCollideWorldBounds(true);
   this.anims.create({
     key: 'run',
     frames: this.anims.generateFrameNumbers('zycules', { start: 0, end: 3 }),
     frameRate: 10,
     repeat: -1
   });
-
   player.play('run');
 
+  // Groups
   obstacles = this.physics.add.group();
   tokens = this.physics.add.group();
 
+  // Spawn loops
   this.time.addEvent({ delay: 1500, callback: spawnObstacle, callbackScope: this, loop: true });
   this.time.addEvent({ delay: 1000, callback: spawnToken, callbackScope: this, loop: true });
 
+  // Score Text
   scoreText = this.add.text(16, 16, 'Olympus Meter: 0', { fontSize: '20px', fill: '#fff' });
 
+  // Collisions
   this.physics.add.overlap(player, tokens, collectToken, null, this);
   this.physics.add.collider(player, obstacles, hitObstacle, null, this);
 
+  // Input
   cursors = this.input.keyboard.createCursorKeys();
 }
 
 function update() {
+  // Always running forward
   player.setVelocityX(200);
 
+  // Jump control
   if ((Phaser.Input.Keyboard.JustDown(cursors.up) || this.input.activePointer.justDown) && player.body.onFloor()) {
     player.setVelocityY(-400);
   }
@@ -69,23 +75,25 @@ function spawnObstacle() {
   const y = config.height - 80;
 
   const obs = obstacles.create(config.width + 50, y, type);
-  obs.setScale(0.25);  // Shrink more aggressively
+
+  // Force exact size
+  obs.setDisplaySize(48, 48);
   obs.setVelocityX(-200);
   obs.setImmovable(true);
   obs.body.allowGravity = false;
-
-  obs.body.setSize(obs.displayWidth * 0.9, obs.displayHeight * 0.9, true);
+  obs.body.setSize(48, 48, true);
 }
 
 function spawnToken() {
   const y = Phaser.Math.Between(config.height - 220, config.height - 120);
 
   const token = tokens.create(config.width + 50, y, 'token');
-  token.setScale(0.2);  // Smaller token
+
+  // Force exact size
+  token.setDisplaySize(24, 24);
   token.setVelocityX(-200);
   token.body.allowGravity = false;
-
-  token.body.setSize(token.displayWidth * 0.9, token.displayHeight * 0.9, true);
+  token.body.setSize(24, 24, true);
 }
 
 function collectToken(player, token) {

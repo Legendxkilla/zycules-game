@@ -8,15 +8,12 @@ const config = {
     default: 'arcade',
     arcade: { gravity: { y: 800 }, debug: false }
   },
-  scene: {
-    preload,
-    create,
-    update
-  }
+  scene: { preload, create, update }
 };
 
 const game = new Phaser.Game(config);
 let player, cursors, obstacles, tokens, score = 0, scoreText, background;
+let gameOver = false;
 
 function preload() {
   this.load.image('background', 'assets/background.png');
@@ -30,37 +27,27 @@ function create() {
   // Scrolling background
   background = this.add.tileSprite(0, 0, config.width, config.height, 'background').setOrigin(0);
 
-  // Create ground (invisible static body)
-  const ground = this.add.rectangle(config.width / 2, config.height - 10, config.width, 20)
-    .setOrigin(0.5, 0.5)
-    .setVisible(false);
-  this.physics.add.existing(ground, true);
-
-  // Player setup - fixed X, falls onto ground
-  player = this.physics.add.sprite(150, config.height - 100, 'zycules').setCollideWorldBounds(true);
+  // Player setup at fixed X
+  player = this.physics.add.sprite(150, config.height - 100, 'zycules')
+    .setCollideWorldBounds(true);
   this.anims.create({
-    key: 'run',
-    frames: this.anims.generateFrameNumbers('zycules', { start: 0, end: 3 }),
-    frameRate: 10,
-    repeat: -1
+    key: 'run', frames: this.anims.generateFrameNumbers('zycules', { start: 0, end: 3 }),
+    frameRate: 10, repeat: -1
   });
   player.play('run');
-
-  // Collide player with ground
-  this.physics.add.collider(player, ground);
 
   // Groups
   obstacles = this.physics.add.group();
   tokens = this.physics.add.group();
 
-  // Spawn loops (easier: more space between obstacles)
+  // Timers for spawning
   this.time.addEvent({ delay: 2000, callback: spawnObstacle, callbackScope: this, loop: true });
-  this.time.addEvent({ delay: 1000, callback: spawnToken, callbackScope: this, loop: true });
+  this.time.addEvent({ delay: 1200, callback: spawnToken, callbackScope: this, loop: true });
 
-  // Score Text
+  // Score display
   scoreText = this.add.text(16, 16, 'Olympus Meter: 0', { fontSize: '20px', fill: '#fff' });
 
-  // Overlaps & collisions
+  // Collisions
   this.physics.add.overlap(player, tokens, collectToken, null, this);
   this.physics.add.collider(player, obstacles, hitObstacle, null, this);
 
@@ -69,51 +56,50 @@ function create() {
 }
 
 function update(time, delta) {
+  if (gameOver) return;
+
   // Scroll background
-  background.tilePositionX += config.physics.arcade.velocityX ? 0 : 0; // no horizontal camera, world is static
+  background.tilePositionX += 200 * delta / 1000;
 
-  // Move obstacles & tokens left manually
-  obstacles.getChildren().forEach(obj => obj.x -= 300 * delta / 1000);
-  tokens.getChildren().forEach(obj => obj.x -= 300 * delta / 1000);
-
-  // Clean up off-screen
-  obstacles.getChildren().forEach(obj => { if (obj.x < -50) obj.destroy(); });
-  tokens.getChildren().forEach(obj => { if (obj.x < -50) obj.destroy(); });
+  // Player auto-run (we keep X fixed, world moves instead)
+  player.setVelocityX(0);
 
   // Jump control
-  const isGrounded = player.body.blocked.down || player.body.touching.down;
+  const isGrounded = player.body.blocked.down;
   if ((Phaser.Input.Keyboard.JustDown(cursors.up) || this.input.activePointer.justDown) && isGrounded) {
     player.setVelocityY(-400);
   }
+
+  // Remove off-screen objects
+  obstacles.getChildren().forEach(obj => { if (obj.x < -50) obj.destroy(); });
+  tokens.getChildren().forEach(obj => { if (obj.x < -50) obj.destroy(); });
 }
 
 function spawnObstacle() {
-  // 60% chance to spawn (gaps)
-  if (Phaser.Math.RND.frac() > 0.6) return;
-  const types = ['rugpull', 'gastrap'];
-  const type = Phaser.Math.RND.pick(types);
+  if (Phaser.Math.RND.frac() < 0.3) return;  // 30% chance to spawn (more gaps)
 
-  // Y aligned to ground
-  const obsHeight = 48;
-  const y = config.height - 10 - obsHeight / 2;
+  const type = Phaser.Math.RND.pick(['rugpull', 'gastrap']);
+  const y = config.height - 24;  // Half ground offset (sprite height is 48)
 
   const obs = obstacles.create(config.width + 50, y, type);
-  obs.setDisplaySize(48, obsHeight);
+  obs.setOrigin(0.5, 1);
+  obs.setDisplaySize(48, 48);
   obs.body.allowGravity = false;
-  obs.body.setSize(48, obsHeight, true);
+  obs.setVelocityX(-200);
+  obs.body.setImmovable(true);
+  obs.body.setSize(48, 48, true);
 }
 
 function spawnToken() {
-  // 50% chance to spawn
-  if (Phaser.Math.RND.frac() > 0.5) return;
-  const tokenHeight = 24;
-  const groundY = config.height - 10;
-  const y = Phaser.Math.Between(groundY - 100, groundY - tokenHeight);
+  if (Phaser.Math.RND.frac() < 0.5) return;  // 50% chance
 
+  const y = Phaser.Math.Between(config.height - 200, config.height - 100);
   const token = tokens.create(config.width + 50, y, 'token');
-  token.setDisplaySize(24, tokenHeight);
+  token.setOrigin(0.5, 1);
+  token.setDisplaySize(24, 24);
   token.body.allowGravity = false;
-  token.body.setSize(24, tokenHeight, true);
+  token.setVelocityX(-200);
+  token.body.setSize(24, 24, true);
 }
 
 function collectToken(player, token) {
@@ -123,8 +109,9 @@ function collectToken(player, token) {
 }
 
 function hitObstacle(player, obstacle) {
+  gameOver = true;
   this.physics.pause();
+  this.time.removeAllEvents();
   player.setTint(0xff0000);
   scoreText.setText('Game Over! Final Olympus Meter: ' + score);
 }
-

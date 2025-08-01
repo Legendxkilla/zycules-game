@@ -8,9 +8,9 @@ const config = {
     arcade: { gravity: { y: 800 }, debug: false }
   },
   scene: {
-    preload: preload,
-    create: create,
-    update: update
+    preload,
+    create,
+    update
   }
 };
 
@@ -58,7 +58,6 @@ function create() {
 function update() {
   player.setVelocityX(200);
 
-  // Optional: Better control for jump
   if ((Phaser.Input.Keyboard.JustDown(cursors.up) || this.input.activePointer.justDown) && player.body.onFloor()) {
     player.setVelocityY(-400);
   }
@@ -67,30 +66,26 @@ function update() {
 function spawnObstacle() {
   const types = ['rugpull', 'gastrap'];
   const type = Phaser.Math.RND.pick(types);
-  const y = config.height - 100;
+  const y = config.height - 80;
 
   const obs = obstacles.create(config.width + 50, y, type);
-  obs.setScale(0.5);  // Shrink obstacle size
-
+  obs.setScale(0.25);  // Shrink more aggressively
   obs.setVelocityX(-200);
   obs.setImmovable(true);
   obs.body.allowGravity = false;
 
-  // Optional hitbox tuning
-  obs.body.setSize(obs.displayWidth, obs.displayHeight);
+  obs.body.setSize(obs.displayWidth * 0.9, obs.displayHeight * 0.9, true);
 }
 
 function spawnToken() {
-  const y = Phaser.Math.Between(config.height - 200, config.height - 100);
+  const y = Phaser.Math.Between(config.height - 220, config.height - 120);
 
   const token = tokens.create(config.width + 50, y, 'token');
-  token.setScale(0.4);  // Shrink token size
-
+  token.setScale(0.2);  // Smaller token
   token.setVelocityX(-200);
   token.body.allowGravity = false;
 
-  // Optional hitbox tuning
-  token.body.setSize(token.displayWidth, token.displayHeight);
+  token.body.setSize(token.displayWidth * 0.9, token.displayHeight * 0.9, true);
 }
 
 function collectToken(player, token) {

@@ -1,3 +1,4 @@
+
 // main.js
 const config = {
   type: Phaser.AUTO,
@@ -6,20 +7,14 @@ const config = {
   parent: 'game-container',
   physics: {
     default: 'arcade',
-    arcade: {
-      gravity: { y: 800 },
-      debug: false
-    }
+    arcade: { gravity: { y: 800 }, debug: false }
   },
-  scene: {
-    preload: preload,
-    create: create,
-    update: update
-  }
+  scene: { preload, create, update }
 };
 
 const game = new Phaser.Game(config);
 let player, cursors, obstacles, tokens, score = 0, scoreText, ground;
+let gameOver = false;
 
 function preload() {
   this.load.image('background', 'assets/background.png');
@@ -31,65 +26,71 @@ function preload() {
 }
 
 function create() {
-  this.add.tileSprite(0, 0, config.width, config.height, 'background').setOrigin(0, 0);
+  // Scrolling background
+  this.add.tileSprite(0, 0, config.width, config.height, 'background').setOrigin(0);
 
+  // Ground (static)
   ground = this.physics.add.staticGroup();
-  ground.create(config.width / 2, config.height - 25, 'ground').setScale(2).refreshBody();
+  ground.create(config.width/2, config.height - 10, 'ground')
+    .setDisplaySize(config.width, 20)
+    .refreshBody();
 
-  player = this.physics.add.sprite(100, config.height - 150, 'zycules');
-  player.setCollideWorldBounds(true);
-  player.setBounce(0);
-
-  this.anims.create({
-    key: 'run',
-    frames: this.anims.generateFrameNumbers('zycules', { start: 0, end: 3 }),
-    frameRate: 10,
-    repeat: -1
-  });
+  // Player
+  player = this.physics.add.sprite(150, config.height - 50, 'zycules')
+    .setCollideWorldBounds(true)
+    .setScale(0.75);
+  this.anims.create({ key: 'run', frames: this.anims.generateFrameNumbers('zycules', { start: 0, end: 3 }), frameRate: 10, repeat: -1 });
   player.play('run');
+  this.physics.add.collider(player, ground);
 
+  // Groups
   obstacles = this.physics.add.group();
   tokens = this.physics.add.group();
 
-  this.time.addEvent({ delay: 2000, callback: spawnObstacle, callbackScope: this, loop: true });
-  this.time.addEvent({ delay: 3000, callback: spawnToken, callbackScope: this, loop: true });
+  // Spawn loops with larger delay and gap chance
+  this.time.addEvent({ delay: 3000, callback: spawnObstacle, callbackScope: this, loop: true });
+  this.time.addEvent({ delay: 2000, callback: spawnToken, callbackScope: this, loop: true });
 
+  // Score
   scoreText = this.add.text(16, 16, 'Olympus Meter: 0', { fontSize: '20px', fill: '#fff' });
-
-  this.physics.add.collider(player, ground);
-  this.physics.add.collider(obstacles, ground);
   this.physics.add.overlap(player, tokens, collectToken, null, this);
   this.physics.add.collider(player, obstacles, hitObstacle, null, this);
 
+  // Input
   cursors = this.input.keyboard.createCursorKeys();
 }
 
 function update() {
-  if (!player.active) return;
+  if (gameOver) return;
 
-  player.setVelocityX(0); // Prevent movement to the right
-
-  if ((cursors.up.isDown || this.input.activePointer.isDown) && player.body.blocked.down) {
-    player.setVelocityY(-400);
+  // Jump only when on ground
+  if ((Phaser.Input.Keyboard.JustDown(cursors.up) || this.input.activePointer.justDown) && player.body.blocked.down) {
+    player.setVelocityY(-350);
   }
 }
 
 function spawnObstacle() {
-  const types = ['rugpull', 'gastrap'];
-  const type = Phaser.Math.RND.pick(types);
-  const obs = obstacles.create(config.width + 50, config.height - 100, type);
-  obs.setVelocityX(-150);
-  obs.setImmovable(true);
+  // 50% chance to spawn (lots of gaps)
+  if (Math.random() < 0.5) return;
+  const type = Phaser.Math.RND.pick(['rugpull', 'gastrap']);
+  const y = config.height - 10;
+  const obs = obstacles.create(config.width + 50, y, type)
+    .setOrigin(0.5, 1)
+    .setDisplaySize(32, 32);
   obs.body.allowGravity = false;
-  obs.setScale(0.5);
+  obs.setVelocityX(-100);  // Slower speed
+  obs.body.setImmovable(true);
 }
 
 function spawnToken() {
-  const y = config.height - 150;
-  const token = tokens.create(config.width + 50, y, 'token');
-  token.setVelocityX(-150);
+  // 60% chance
+  if (Math.random() < 0.4) return;
+  const y = Phaser.Math.Between(config.height - 150, config.height - 50);
+  const token = tokens.create(config.width + 50, y, 'token')
+    .setOrigin(0.5, 1)
+    .setDisplaySize(16, 16);
   token.body.allowGravity = false;
-  token.setScale(0.4);
+  token.setVelocityX(-100);
 }
 
 function collectToken(player, token) {
@@ -99,9 +100,10 @@ function collectToken(player, token) {
 }
 
 function hitObstacle(player, obstacle) {
+  gameOver = true;
   this.physics.pause();
   player.setTint(0xff0000);
   player.anims.pause();
-  player.active = false;
   scoreText.setText('Game Over! Final Olympus Meter: ' + score);
 }
+
